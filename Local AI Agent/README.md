@@ -200,3 +200,70 @@ User reports: "the bot gave a weird answer on turn 4"
 ```
 
 Without hooks you only see the final broken output with no trail. Hooks give you visibility into every intermediate state so you can pinpoint exactly where things went wrong.
+
+---
+
+## These are General Python Patterns — Not LLM-Specific
+
+Every technique in this project existed long before LLMs. The AI context gave you a concrete reason to learn them, but you can apply all of them in any Python project.
+
+### Decorator / `wrap_model_call`
+
+Used everywhere in Python. The language has built-in `@` decorator support precisely because wrapping functions is so common.
+
+```python
+@login_required          # Django — wraps any view function
+@cache(timeout=300)      # caching — wraps any expensive function
+@retry(max_attempts=3)   # wraps any network call
+@timer                   # wraps any function to measure speed
+```
+
+### Template Method Pattern (`AgentMiddleware` base class)
+
+Core OOP pattern used in frameworks for decades.
+
+```python
+# Django's class-based views — same pattern
+class View:
+    def get(self): pass     # hook — override in subclass
+    def post(self): pass    # hook — override in subclass
+
+class MyView(View):
+    def get(self, request):
+        return HttpResponse("hello")
+```
+
+### Observer / Hooks (`HookRegistry`)
+
+Used in virtually every framework and UI system.
+
+```python
+# pytest hooks
+def pytest_runtest_setup(item): ...    # before each test
+def pytest_runtest_teardown(item): ... # after each test
+
+# Django signals
+post_save.connect(send_welcome_email, sender=User)
+
+# JavaScript DOM (same idea, different language)
+button.addEventListener("click", handler)
+```
+
+### `MemorySaver` / State persistence
+
+Just a key-value store pattern — nothing LLM-specific.
+
+```python
+# same concept in a web session
+session["user_id"] = 42        # store
+user_id = session["user_id"]   # restore next request
+```
+
+### Summary
+
+| What we built | General name | Used in |
+|---|---|---|
+| `wrap_model_call` | Decorator Pattern | Flask, Django, pytest, stdlib (`@property`, `@staticmethod`) |
+| `AgentMiddleware` | Template Method | Django views, Java abstract classes, game engines |
+| `HookRegistry` | Observer Pattern | pytest, DOM events, Django signals, Node.js EventEmitter |
+| `MemorySaver` | State persistence | HTTP sessions, Redis, databases |
