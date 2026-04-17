@@ -26,7 +26,6 @@ def _require_int(key: str) -> int:
 
 BASIC_MODEL          = _require("BASIC_MODEL")
 ADVANCED_MODEL       = _require("ADVANCED_MODEL")
-CODE_MODEL           = _require("CODE_MODEL")
 SYSTEM_PROMPT        = _require("SYSTEM_PROMPT")
 CODE_PROMPT          = _require("CODE_PROMPT")
 COMPLEXITY_THRESHOLD = _require_int("COMPLEXITY_THRESHOLD")

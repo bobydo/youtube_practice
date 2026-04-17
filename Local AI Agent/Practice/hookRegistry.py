@@ -9,22 +9,20 @@ from langchain_core.runnables import Runnable
 from langgraph.graph import MessagesState
 from langsmith import traceable
 
-from custAgent import ModelResponse
-
 # ---------------------------------------------------------------------------
 # 1. ModelRequest
-#
-# model is typed as Runnable (not ChatOllama) because agent_node binds tools
-# before storing: get_model(turns).bind_tools([get_weather]) returns a
+# model is typed as Runnable (not ChatOllama)
 # RunnableBinding, which is a Runnable but not a ChatOllama.
 # ---------------------------------------------------------------------------
 
+# @dataclass is just a code generator that auto-writes boilerplate
 @dataclass
 class ModelRequest:
     model: Runnable                   # accepts ChatOllama or bind_tools result
     messages: Sequence[BaseMessage]
     state: MessagesState
 
+ModelResponse = BaseMessage
 
 # ---------------------------------------------------------------------------
 # 2. HookRegistry — Observer Pattern
