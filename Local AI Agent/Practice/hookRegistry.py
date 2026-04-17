@@ -15,13 +15,12 @@ from langsmith import traceable
 # RunnableBinding, which is a Runnable but not a ChatOllama.
 # ---------------------------------------------------------------------------
 
-# @dataclass is just a code generator that auto-writes boilerplate
 @dataclass
 class ModelRequest:
-    model: Runnable                   # accepts ChatOllama or bind_tools result
-    messages: Sequence[BaseMessage]
+    model: Runnable
+    messages: Sequence[BaseMessage] # input to the model chain; same as C# generics
     state: MessagesState
-
+    
 ModelResponse = BaseMessage
 
 # ---------------------------------------------------------------------------
@@ -50,6 +49,7 @@ class HookRegistry:
 
     # ---------------------------------------------------------------------------
     # 3. Timing + exception callbacks
+    # Smith has cloud version only of traceable
     # ---------------------------------------------------------------------------
 
     @traceable(name="hook.before_agent")

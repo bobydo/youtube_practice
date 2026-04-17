@@ -3,7 +3,7 @@ test_agent.py — entry point for running the agent with real user context.
 Uses AgentBuilder (Builder Pattern) to configure and compile the agent.
 """
 from agentBuilder import AgentBuilder
-from dynamicModel import dynamic_model_selection
+from modelMiddleware import ModelMiddleware
 from weather import Context, locate_user, get_weather
 from langchain_core.messages import HumanMessage
 
@@ -28,7 +28,7 @@ def run_for_user(user_id: str) -> None:
     print('='*60)
 
     agent = (AgentBuilder()
-        .with_middleware(dynamic_model_selection)
+        .with_middleware(ModelMiddleware.dynamic_model_selection)
         .with_tools(locate_user, get_weather)
         .build())
 
