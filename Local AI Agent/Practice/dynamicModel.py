@@ -4,62 +4,16 @@ from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
-from langsmith import traceable
-from hookRegistry import HookRegistry, ModelRequest, ModelResponse
+from hookRegistry import HookRegistry, ModelRequest
 from modelFactory import ModelFactory
-from loadEnv import (
-    SYSTEM_PROMPT, MAX_RETRIES,
-)
+from modelMiddleware import ModelMiddleware
+from loadEnv import SYSTEM_PROMPT
 
 # One shared factory — reads threshold from .env at startup
 factory = ModelFactory()
 
 # ---------------------------------------------------------------------------
-# 1. wrap_model_call decorator
-# ---------------------------------------------------------------------------
-
-def wrap_model_call(fn: Callable) -> Callable:
-    def wrapper(request: ModelRequest, handler: Callable) -> ModelResponse:
-        return fn(request, handler)
-    return wrapper
-
-# ---------------------------------------------------------------------------
-# 2. run_middleware_chain — Chain of Responsibility + retry at the LLM call
-# ---------------------------------------------------------------------------
-
-@traceable(name="middleware_chain")
-def run_middleware_chain(request: ModelRequest, middleware: list[Callable]) -> ModelResponse:
-    def call_next(i: int, req: ModelRequest) -> ModelResponse:
-        if i == len(middleware):
-            for attempt in range(MAX_RETRIES):
-                try:
-                    return req.model.invoke(req.messages)
-                except Exception:
-                    if attempt < MAX_RETRIES - 1:
-                        pass
-                    else:
-                        raise
-        return middleware[i](req, lambda r: call_next(i + 1, r))
-
-    return call_next(0, request)
-
-# ---------------------------------------------------------------------------
-# 3. dynamic_model_selection — middleware
-#    Uses factory.create() instead of referencing global model instances.
-# ---------------------------------------------------------------------------
-
-@wrap_model_call
-def dynamic_model_selection(request: ModelRequest, handler: Callable) -> ModelResponse:
-    from langchain_core.runnables.base import RunnableBinding
-    # If agent_node already bound tools, the model is a RunnableBinding —
-    # don't override it or the tool binding (and model upgrade) will be lost.
-    if not isinstance(request.model, RunnableBinding):
-        human_turns = sum(isinstance(m, HumanMessage) for m in request.state["messages"])
-        request.model = factory.create(human_turns)
-    return handler(request)
-
-# ---------------------------------------------------------------------------
-# 4. create_agent
+# 1. create_agent
 #
 # Template Method — _run_node() holds the shared skeleton for every node:
 #   emit before_agent → build request → run chain → emit after_model/on_error → emit after_agent
@@ -83,7 +37,7 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
         try:
             hooks.emit("before_model", request)
             response = (
-                run_middleware_chain(request, node_middleware)
+                ModelMiddleware.run_middleware_chain(request, node_middleware)
                 if node_middleware
                 else request.model.invoke(request.messages)
             )
@@ -121,7 +75,7 @@ def main():
     from agentBuilder import AgentBuilder
 
     agent = (AgentBuilder()
-        .with_middleware(dynamic_model_selection)
+        .with_middleware(ModelMiddleware.dynamic_model_selection)
         .build())
 
     config = {"configurable": {"thread_id": "demo-thread"}}

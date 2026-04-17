@@ -131,9 +131,16 @@ if not isinstance(request.model, RunnableBinding):
 [LangGraph]    → MemorySaver saves state            ← checkpointer
 ```
 
-Legend:
-- **[LangChain]** — `langchain_core` / `langchain_ollama`: model, messages, tools, Runnable interface
-- **[LangGraph]** — `langgraph`: graph topology, nodes, edges, ToolNode, MemorySaver
-- **[custom]**    — our own code: ModelFactory, middleware chain, HookRegistry
-
 **One-line summary: LangChain = talking to the model. LangGraph = controlling the flow between steps.**
+
+## Implementation sequence from scratch:
+
+```
+1. loadEnv.py          — no deps; defines all config constants
+2. hookRegistry.py     — defines ModelRequest / ModelResponse dataclasses + HookRegistry (Observer)
+3. modelFactory.py     — depends on loadEnv; pure logic, easy to test alone
+4. modelMiddleware.py  — depends on hookRegistry + modelFactory; Chain of Responsibility
+5. dynamicModel.py     — depends on all above; wires the LangGraph
+6. agentBuilder.py     — depends on hookRegistry + dynamicModel; Builder wrapper on top
+7. weather.py          — standalone tool, add whenever needed
+```

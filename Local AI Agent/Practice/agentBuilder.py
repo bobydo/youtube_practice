@@ -13,7 +13,7 @@ Usage:
 """
 from typing import Callable
 from hookRegistry import HookRegistry
-from dynamicModel import create_agent, dynamic_model_selection
+from dynamicModel import create_agent
 
 
 class AgentBuilder:
