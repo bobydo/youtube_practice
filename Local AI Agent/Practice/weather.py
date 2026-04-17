@@ -48,7 +48,7 @@ def _lookup_city(geonameid: int) -> str:
                 return f"{row['name']}, {row['country']}"
     return 'Unknown'
 
-@tool('locate_user', description="Look up a user's city based on their user_id in context")
+@tool('locate_user', description="Automatically returns the current user's city — no input required. Call this first whenever you need to know where the user is located.")
 def locate_user(config: RunnableConfig) -> str:
     """Return the city for the current user."""
     context: Context = config.get('configurable', {}).get('context', Context(user_id=''))

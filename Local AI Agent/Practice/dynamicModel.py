@@ -1,6 +1,7 @@
 import time
 from typing import Callable
 from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
 from langsmith import traceable
@@ -49,8 +50,12 @@ def run_middleware_chain(request: ModelRequest, middleware: list[Callable]) -> M
 
 @wrap_model_call
 def dynamic_model_selection(request: ModelRequest, handler: Callable) -> ModelResponse:
-    human_turns = sum(isinstance(m, HumanMessage) for m in request.state["messages"])
-    request.model = factory.create(human_turns)
+    from langchain_core.runnables.base import RunnableBinding
+    # If agent_node already bound tools, the model is a RunnableBinding —
+    # don't override it or the tool binding (and model upgrade) will be lost.
+    if not isinstance(request.model, RunnableBinding):
+        human_turns = sum(isinstance(m, HumanMessage) for m in request.state["messages"])
+        request.model = factory.create(human_turns)
     return handler(request)
 
 # ---------------------------------------------------------------------------
@@ -90,15 +95,22 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
         return {"messages": [response]}
 
     # ----- Nodes: only the variable parts -----
+    # llama3.2:3b too bad to handle too call
     def agent_node(state: MessagesState) -> dict:
         human_turns = sum(isinstance(m, HumanMessage) for m in state["messages"])
-        return _run_node(state, factory.create(human_turns), SYSTEM_PROMPT, middleware)
+        return _run_node(state, factory.create(human_turns, has_tools=bool(_tools)), SYSTEM_PROMPT, middleware)
+
+    def should_continue(state: MessagesState) -> str:
+        last = state["messages"][-1]
+        return "tools" if getattr(last, "tool_calls", None) else END
 
     checkpointer = MemorySaver()
     graph = StateGraph(MessagesState)
     graph.add_node("agent", agent_node)
+    graph.add_node("tools", ToolNode(_tools))
     graph.add_edge(START, "agent")
-    graph.add_edge("agent", END)
+    graph.add_conditional_edges("agent", should_continue)
+    graph.add_edge("tools", "agent")
     return graph.compile(checkpointer=checkpointer)
 
 # ---------------------------------------------------------------------------
