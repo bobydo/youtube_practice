@@ -267,3 +267,22 @@ user_id = session["user_id"]   # restore next request
 | `AgentMiddleware` | Template Method | Django views, Java abstract classes, game engines |
 | `HookRegistry` | Observer Pattern | pytest, DOM events, Django signals, Node.js EventEmitter |
 | `MemorySaver` | State persistence | HTTP sessions, Redis, databases |
+
+---
+
+## Local Vision Models for OCR — Which to Use
+
+For extracting text from images (receipts, documents, invoices) using a free local model via Ollama:
+
+| Model | OCR Quality | RAM needed | Best for |
+|---|---|---|---|
+| `minicpm-v` | Excellent | ~6GB | Receipts, documents, dense text — **recommended** |
+| `llava:13b` | Very good | ~8GB | General images + text |
+| `llava:34b` | Better quality | ~20GB | Strong GPU only |
+| `bakllava` | Poor | ~5GB | Not recommended for OCR |
+
+**Why `minicpm-v`:** It was specifically designed for document/text-heavy images. Other models like `bakllava` guess at words they can't read clearly, causing inconsistent output (e.g., "construction receipt" instead of "restaurant receipt").
+
+**Parameters that matter for consistent extraction:**
+- `temperature=0` — eliminates randomness so you get the same answer every run
+- A specific prompt asking for JSON output — prevents the model from free-forming its response
