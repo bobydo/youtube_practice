@@ -8,7 +8,7 @@ from langsmith import traceable
 from hookRegistry import HookRegistry, ModelRequest, ModelResponse
 from modelFactory import ModelFactory
 from loadEnv import (
-    SYSTEM_PROMPT, CODE_PROMPT, MAX_RETRIES,
+    SYSTEM_PROMPT, MAX_RETRIES,
 )
 
 # One shared factory — reads threshold from .env at startup
