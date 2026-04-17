@@ -12,9 +12,9 @@ class ModelFactory:
     def __init__(self, threshold: int = COMPLEXITY_THRESHOLD):
         self._threshold = threshold
 
-    def create(self, human_turns: int, has_tools: bool = False) -> ChatOllama:
+    def create(self, human_turns: int) -> ChatOllama:
         """Return a fresh ChatOllama instance chosen by turn count.
-        has_tools=True always picks ADVANCED_MODEL — small models lack reliable tool-calling.
+        For simplicity, we just count human messages to gauge complexity —
         """
-        name = ADVANCED_MODEL if (has_tools or human_turns > self._threshold) else BASIC_MODEL
+        name = ADVANCED_MODEL if (human_turns > self._threshold) else BASIC_MODEL
         return ChatOllama(model=name)

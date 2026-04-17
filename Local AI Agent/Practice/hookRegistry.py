@@ -7,7 +7,9 @@ from typing import Callable, Sequence
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import Runnable
 from langgraph.graph import MessagesState
-from langsmith import traceable
+from loggerSetup import get_logger
+
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # 1. ModelRequest
@@ -52,34 +54,26 @@ class HookRegistry:
     # Smith has cloud version only of traceable
     # ---------------------------------------------------------------------------
 
-    @traceable(name="hook.before_agent")
-    def on_before_agent(self, state: MessagesState) -> dict:
+    def on_before_agent(self, state: MessagesState) -> None:
         self._timing["agent_start"] = time.time()
-        return {"history_length": len(state["messages"])}
+        logger.info("before_agent  history_length=%d", len(state["messages"]))
 
-    @traceable(name="hook.before_model")
-    def on_before_model(self, request: ModelRequest) -> dict:
+    def on_before_model(self, request: ModelRequest) -> None:
         self._timing["model_start"] = time.time()
-        # getattr safely handles both ChatOllama (.model attr) and RunnableBinding
-        return {"model": getattr(request.model, 'model', str(request.model))}
+        model_name = getattr(request.model, 'model', str(request.model))
+        logger.info("before_model  model=%s", model_name)
 
-    @traceable(name="hook.after_model")
-    def on_after_model(self, _response: ModelResponse) -> dict:
+    def on_after_model(self, _response: ModelResponse) -> None:
         elapsed = time.time() - self._timing["model_start"]
-        return {"elapsed_seconds": round(elapsed, 2)}
+        logger.info("after_model   elapsed=%.2fs", elapsed)
 
-    @traceable(name="hook.after_agent")
-    def on_after_agent(self, _state: MessagesState) -> dict:
+    def on_after_agent(self, _state: MessagesState) -> None:
         elapsed = time.time() - self._timing["agent_start"]
-        return {"total_seconds": round(elapsed, 2)}
+        logger.info("after_agent   total=%.2fs", elapsed)
 
-    @traceable(name="hook.on_error")
-    def on_error(self, exc: Exception, request: ModelRequest) -> dict:
+    def on_error(self, exc: Exception, request: ModelRequest) -> None:
         start = self._timing.get("model_start") or self._timing.get("agent_start", time.time())
         elapsed = time.time() - start
-        return {
-            "error_type": type(exc).__name__,
-            "error_message": str(exc),
-            "model": getattr(request.model, 'model', str(request.model)),
-            "elapsed_seconds": round(elapsed, 2),
-        }
+        model_name = getattr(request.model, 'model', str(request.model))
+        logger.error("on_error  %s: %s  model=%s  elapsed=%.2fs",
+                     type(exc).__name__, exc, model_name, elapsed)

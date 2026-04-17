@@ -52,7 +52,7 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
     # llama3.2:3b too bad to handle too call
     def agent_node(state: MessagesState) -> dict:
         human_turns = sum(isinstance(m, HumanMessage) for m in state["messages"])
-        return _run_node(state, factory.create(human_turns, has_tools=bool(_tools)), SYSTEM_PROMPT, middleware)
+        return _run_node(state, factory.create(human_turns), SYSTEM_PROMPT, middleware)
 
     def should_continue(state: MessagesState) -> str:
         last = state["messages"][-1]
