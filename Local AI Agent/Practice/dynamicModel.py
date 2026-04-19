@@ -58,6 +58,8 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
         return _run_node(state, factory.create(human_turns), SYSTEM_PROMPT, middleware)
 
     def should_continue(state: MessagesState) -> str:
+        for msg in state["messages"]:
+            logger.info("last_message  type=%s content=%s", type(msg).__name__, str(msg.content)[:120])
         last = state["messages"][-1]
         return "tools" if getattr(last, "tool_calls", None) else END
 

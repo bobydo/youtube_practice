@@ -4,7 +4,7 @@ Uses AgentBuilder (Builder Pattern) to configure and compile the agent.
 """
 from agentBuilder import AgentBuilder
 from modelMiddleware import ModelMiddleware
-from weather import Context, locate_user, get_weather
+from weatherService import Context, locate_user, get_weather
 from langchain_core.messages import HumanMessage
 
 middleware = ModelMiddleware()
