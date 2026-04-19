@@ -8,9 +8,13 @@ from hookRegistry import HookRegistry, ModelRequest
 from modelFactory import ModelFactory
 from modelMiddleware import ModelMiddleware
 from loadEnv import SYSTEM_PROMPT
+from loggerSetup import get_logger
 
-# One shared factory — reads threshold from .env at startup
+logger = get_logger(__name__)
+
+# One shared factory and middleware instance
 factory = ModelFactory()
+middleware_instance = ModelMiddleware(factory)
 
 # ---------------------------------------------------------------------------
 # 1. create_agent
@@ -37,7 +41,7 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
         try:
             hooks.emit("before_model", request)
             response = (
-                ModelMiddleware.run_middleware_chain(request, node_middleware)
+                middleware_instance.run_middleware_chain(request, node_middleware)
                 if node_middleware
                 else request.model.invoke(request.messages)
             )
@@ -49,7 +53,6 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
         return {"messages": [response]}
 
     # ----- Nodes: only the variable parts -----
-    # llama3.2:3b too bad to handle too call
     def agent_node(state: MessagesState) -> dict:
         human_turns = sum(isinstance(m, HumanMessage) for m in state["messages"])
         return _run_node(state, factory.create(human_turns), SYSTEM_PROMPT, middleware)
@@ -58,10 +61,22 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
         last = state["messages"][-1]
         return "tools" if getattr(last, "tool_calls", None) else END
 
+    _tool_node = ToolNode(_tools)
+
+    def logged_tool_node(state: MessagesState) -> dict:
+        last = state["messages"][-1]
+        for tc in getattr(last, "tool_calls", []):
+            logger.info("tool_call    name=%s  args=%s", tc["name"], tc["args"])
+        result = _tool_node.invoke(state)
+        for msg in result.get("messages", []):
+            logger.info("tool_result  name=%s  content=%s",
+                        getattr(msg, "name", "?"), str(msg.content)[:120])
+        return result
+
     checkpointer = MemorySaver()
     graph = StateGraph(MessagesState)
     graph.add_node("agent", agent_node)
-    graph.add_node("tools", ToolNode(_tools))
+    graph.add_node("tools", logged_tool_node)
     graph.add_edge(START, "agent")
     graph.add_conditional_edges("agent", should_continue)
     graph.add_edge("tools", "agent")
@@ -75,7 +90,7 @@ def main():
     from agentBuilder import AgentBuilder
 
     agent = (AgentBuilder()
-        .with_middleware(ModelMiddleware.dynamic_model_selection)
+        .with_middleware(middleware_instance.dynamic_model_selection)
         .build())
 
     config = {"configurable": {"thread_id": "demo-thread"}}
@@ -96,7 +111,7 @@ def main():
             config=config,
         )
         reply = result["messages"][-1].content
-        print(f"Agent: {reply[:120]}{'...' if len(reply) > 120 else ''}")
+        print(f"Agent: {reply}")
 
 if __name__ == "__main__":
     main()

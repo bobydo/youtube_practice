@@ -7,6 +7,8 @@ from modelMiddleware import ModelMiddleware
 from weather import Context, locate_user, get_weather
 from langchain_core.messages import HumanMessage
 
+middleware = ModelMiddleware()
+
 USERS = {
     '123': 'Alice',    # Edmonton, Canada
     '456': 'Bob',      # New York City, United States
@@ -28,7 +30,7 @@ def run_for_user(user_id: str) -> None:
     print('='*60)
 
     agent = (AgentBuilder()
-        .with_middleware(ModelMiddleware.dynamic_model_selection)
+        .with_middleware(middleware.dynamic_model_selection)
         .with_tools(locate_user, get_weather)
         .build())
 

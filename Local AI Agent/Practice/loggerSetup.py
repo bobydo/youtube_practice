@@ -19,10 +19,10 @@ def get_logger(name: str) -> logging.Logger:
 
     fh = logging.FileHandler(filename, encoding="utf-8")
     fh.setFormatter(fmt)
-
-    ch = logging.StreamHandler()
-    ch.setFormatter(fmt)
+    # Remove StreamHandler → silent terminal, logs only to file
+    # ch = logging.StreamHandler()
+    # ch.setFormatter(fmt)
 
     logger.addHandler(fh)
-    logger.addHandler(ch)
+    # logger.addHandler(ch)
     return logger

@@ -65,15 +65,17 @@ class HookRegistry:
 
     def on_after_model(self, _response: ModelResponse) -> None:
         elapsed = time.time() - self._timing["model_start"]
-        logger.info("after_model   elapsed=%.2fs", elapsed)
+        preview_response = str(_response.content)[:800]
+        logger.info("after_model   elapsed=%.2fs preview_response=%s", elapsed, preview_response)
 
     def on_after_agent(self, _state: MessagesState) -> None:
         elapsed = time.time() - self._timing["agent_start"]
-        logger.info("after_agent   total=%.2fs", elapsed)
+        preview_state = str(_state["messages"][-1].content)[:80]
+        logger.info("after_agent   total=%.2fs preview_state=%s", elapsed, preview_state)
 
     def on_error(self, exc: Exception, request: ModelRequest) -> None:
         start = self._timing.get("model_start") or self._timing.get("agent_start", time.time())
         elapsed = time.time() - start
         model_name = getattr(request.model, 'model', str(request.model))
         logger.error("on_error  %s: %s  model=%s  elapsed=%.2fs",
-                     type(exc).__name__, exc, model_name, elapsed)
+            type(exc).__name__, exc, model_name, elapsed)
