@@ -1,5 +1,7 @@
+from email.mime import base
 import time
 from typing import Callable
+from langchain_core.runnables import Runnable
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
@@ -31,8 +33,11 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
     _tools = tools or []
 
     # ----- Template Method: shared node skeleton -----
-    def _run_node(state: MessagesState, model, system_prompt: str, node_middleware: list) -> dict:
+    async def _run_node(state: MessagesState, model, system_prompt: str, node_middleware: list) -> dict:
         hooks.emit("before_agent", state)
+        #Runnable  (base interface — ainvoke, invoke, stream)
+        #└── RunnableBinding  (wraps a Runnable + bound config/tools)
+        #    └── model.bind_tools(...)  returns this
         request = ModelRequest(
             model=model.bind_tools(_tools),
             messages=[SystemMessage(content=system_prompt)] + state["messages"],
@@ -41,9 +46,9 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
         try:
             hooks.emit("before_model", request)
             response = (
-                middleware_instance.run_middleware_chain(request, node_middleware)
+                await middleware_instance.run_middleware_chain(request, node_middleware)
                 if node_middleware
-                else request.model.invoke(request.messages)
+                else await request.model.ainvoke(request.messages)
             )
             hooks.emit("after_model", response)
         except Exception as exc:
@@ -53,9 +58,9 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
         return {"messages": [response]}
 
     # ----- Nodes: only the variable parts -----
-    def agent_node(state: MessagesState) -> dict:
+    async def agent_node(state: MessagesState) -> dict:
         human_turns = sum(isinstance(m, HumanMessage) for m in state["messages"])
-        return _run_node(state, factory.create(human_turns), SYSTEM_PROMPT, middleware)
+        return await _run_node(state, factory.create(human_turns), SYSTEM_PROMPT, middleware)
 
     def should_continue(state: MessagesState) -> str:
         for msg in state["messages"]:
@@ -65,22 +70,31 @@ def create_agent(middleware: list[Callable], hooks: HookRegistry, tools: list | 
 
     _tool_node = ToolNode(_tools)
 
-    def logged_tool_node(state: MessagesState) -> dict:
+    async def logged_tool_node(state: MessagesState) -> dict:
         last = state["messages"][-1]
         for tc in getattr(last, "tool_calls", []):
             logger.info("tool_call    name=%s  args=%s", tc["name"], tc["args"])
-        result = _tool_node.invoke(state)
+        # get_weather + get_news will run parallel if both called
+        result = await _tool_node.ainvoke(state) 
         for msg in result.get("messages", []):
-            logger.info("tool_result  name=%s  content=%s",
+            logger.info("logged_tool_node => tool_result  name=%s  content=%s",
                         getattr(msg, "name", "?"), str(msg.content)[:120])
         return result
 
+    # MessagesState uses add_messages which appends, never replaces:
+    # # Turn 1 messages: [HumanMessage("what is ML?"), AIMessage(tool_calls=[locate_user])]
+    # After logged_tool_node:
+    # messages: [HumanMessage, AIMessage(tool_calls), ToolMessage("Edmonton")]
+    # # After agent_node again:
+    # messages: [HumanMessage, AIMessage(tool_calls), ToolMessage, AIMessage("The weather is...")]
     checkpointer = MemorySaver()
+    
     graph = StateGraph(MessagesState)
+    graph.add_edge(START, "agent")
     graph.add_node("agent", agent_node)
     graph.add_node("tools", logged_tool_node)
-    graph.add_edge(START, "agent")
     graph.add_conditional_edges("agent", should_continue)
+    # After logged_tool_node finishes, always go back to agent_node.
     graph.add_edge("tools", "agent")
     return graph.compile(checkpointer=checkpointer)
 

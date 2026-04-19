@@ -2,6 +2,8 @@
 test_agent.py — entry point for running the agent with real user context.
 Uses AgentBuilder (Builder Pattern) to configure and compile the agent.
 """
+import asyncio
+
 from agentBuilder import AgentBuilder
 from modelMiddleware import ModelMiddleware
 from weatherService import Context, locate_user, get_weather
@@ -23,7 +25,7 @@ CONVERSATION = [
     "And what is the attention mechanism?",
 ]
 
-def run_for_user(user_id: str) -> None:
+async def run_for_user(user_id: str) -> None:
     name = USERS.get(user_id, f"user_{user_id}")
     print(f"\n{'='*60}")
     print(f"Session: {name} (user_id={user_id})")
@@ -44,7 +46,7 @@ def run_for_user(user_id: str) -> None:
     for turn, user_input in enumerate(CONVERSATION, start=1):
         print(f"\n--- Turn {turn} ---")
         print(f"{name}: {user_input}")
-        result = agent.invoke(
+        result = await agent.ainvoke(
             {"messages": [HumanMessage(content=user_input)]},
             config=config,
         )
@@ -53,4 +55,4 @@ def run_for_user(user_id: str) -> None:
 
 
 if __name__ == "__main__":
-    run_for_user("123")   # change to "456" or "789" to test other users
+    asyncio.run(run_for_user("123"))   # change to "456" or "789" to test other users

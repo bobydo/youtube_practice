@@ -59,11 +59,12 @@ class LocationService:
 # ---------------------------------------------------------------------------
 
 class WeatherApi:
-    def fetch(self, city: str, country: str) -> dict:
-        import requests
+    async def fetch(self, city: str, country: str) -> dict:
+        import aiohttp
         logger.info("weather_fetch  city=%s  country=%s", city, country)
-        response = requests.get(f"https://wttr.in/{city},{country}?format=j1")
-        return response.json()
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://wttr.in/{city},{country}?format=j1") as response:
+                return await response.json()
 
 # ---------------------------------------------------------------------------
 # 3. WeatherService — Facade pattern
@@ -75,12 +76,12 @@ class WeatherService:
         self._location = location
         self._weather = weather
 
-    def get_for_user(self, user_id: str) -> dict:
+    async def get_for_user(self, user_id: str) -> dict:
         city_country = self._location.lookup(user_id)
         if city_country == 'Unknown':
             return {'error': 'User location not found'}
         city, country = city_country.split(', ', 1)
-        return self._weather.fetch(city, country)
+        return await self._weather.fetch(city, country)
 
 # ---------------------------------------------------------------------------
 # 4. Module-level instances
@@ -110,6 +111,6 @@ def locate_user(config: RunnableConfig) -> str:
     ),
     return_direct=False,
 )
-def get_weather(city: str, country: str) -> dict:
+async def get_weather(city: str, country: str) -> dict:
     """Get current weather for a city. Requires BOTH city and country."""
-    return _weather_api.fetch(city, country)
+    return await _weather_api.fetch(city, country)
