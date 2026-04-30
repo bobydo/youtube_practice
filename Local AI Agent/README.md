@@ -75,3 +75,15 @@ async def run_for_user():                  async def run_for_user():
 ```
 
 **Rule:** one `asyncio.run()` at `if __name__ == "__main__"`. Use `await` everywhere else inside async functions.
+
+## Future Expansions
+
+| Concept | What it adds | Key classes |
+|---|---|---|
+| **RAG** | Agent retrieves relevant documents before answering — grounds responses in your own data | `Chroma` / `FAISS` vector store, `RecursiveCharacterTextSplitter`, `create_retrieval_chain` |
+| **Streaming** | Tokens printed as they arrive instead of waiting for the full response | `agent.astream_events()`, `on_chat_model_stream` event type |
+| **Structured output** | Force the model to return a typed Pydantic object instead of free text | `llm.with_structured_output(MySchema)` |
+| **Human-in-the-loop** | Pause the graph before a tool runs and wait for human approval | `interrupt_before=["tools"]` in `compile()`, `graph.update_state()` to resume |
+| **Persistent memory** | Replace `MemorySaver` (in-process) with a database so history survives restarts | `AsyncPostgresSaver` / `SqliteSaver` from `langgraph-checkpoint-*` |
+| **Multi-agent** | Supervisor agent routes subtasks to specialist sub-agents | `langgraph.prebuilt.create_react_agent`, supervisor node with conditional edges to sub-graphs |
+| **Fine-tuning data** | Collect real traces in Langfuse → export as dataset → fine-tune a smaller model | Langfuse `datasets` API, OpenAI fine-tuning endpoint |
